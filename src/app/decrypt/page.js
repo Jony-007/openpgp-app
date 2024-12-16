@@ -8,11 +8,17 @@ export default function DecryptPage() {
   const [publicKey, setPublicKey] = useState("");
   const [encryptedMessage, setEncryptedMessage] = useState("");
   const [decryptedMessage, setDecryptedMessage] = useState("");
+  const [signatureVerified, setSignatureVerified] = useState(null);
 
   const decryptAndVerify = async () => {
     try {
+      setSignatureVerified(null); // Reset state before new verification
+
+      // Load the private key and public key
       const privKey = await openpgp.readPrivateKey({ armoredKey: privateKey });
       const pubKey = await openpgp.readKey({ armoredKey: publicKey });
+
+      // Read and decrypt the message
       const message = await openpgp.readMessage({
         armoredMessage: encryptedMessage,
       });
@@ -23,18 +29,28 @@ export default function DecryptPage() {
         verificationKeys: pubKey,
       });
 
-      const valid = await signatures[0].verified;
-      setDecryptedMessage(valid ? decrypted : "Signature verification failed.");
+      setDecryptedMessage(decrypted);
+
+      // Check if the signature is verified
+      const verified = await signatures[0]?.verified;
+      if (verified) {
+        setSignatureVerified("Signature is VERIFIED ✅");
+      } else {
+        setSignatureVerified("Signature verification FAILED ❌");
+      }
     } catch (error) {
       console.error("Error decrypting message:", error);
       setDecryptedMessage("An error occurred during decryption.");
+      setSignatureVerified(null);
     }
   };
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-3xl p-6 bg-white rounded-lg shadow-md">
-        <h1 className="text-2xl font-bold text-center mb-6">Decrypt Message</h1>
+        <h1 className="text-2xl font-bold text-center mb-6">
+          Decrypt & Verify Message
+        </h1>
         <div className="flex flex-col items-center">
           <textarea
             placeholder="Your Private Key"
@@ -60,6 +76,17 @@ export default function DecryptPage() {
           >
             Decrypt & Verify
           </button>
+          {signatureVerified && (
+            <p
+              className={`text-lg font-semibold mb-2 ${
+                signatureVerified.includes("FAILED")
+                  ? "text-red-500"
+                  : "text-green-500"
+              }`}
+            >
+              {signatureVerified}
+            </p>
+          )}
           <h3 className="text-lg font-semibold mb-2">Decrypted Message:</h3>
           <textarea
             readOnly
